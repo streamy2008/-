@@ -1,0 +1,6 @@
+{
+  "name": "智能内镜中心患者监护与全流程追踪系统",
+  "description": "基于蓝牙AOA高精度定位、可穿戴监护、多屏接力投屏与《WS 329-2024 麻醉记录单》合规记录的智能内镜中心患者监护与全流程追踪系统演示与操作界面。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
