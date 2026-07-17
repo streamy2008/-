@@ -50,16 +50,30 @@ const BedMonitorBox = ({
 }) => {
   const ecgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const spo2CanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const respCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Animate ECG and SpO2 curves on separate canvas elements
+  // Stable temp simulation based on id hash so it stays stable
+  const getTemp = (idStr: string) => {
+    let hash = 0;
+    for (let i = 0; i < idStr.length; i++) {
+      hash = idStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const tempOffset = (Math.abs(hash) % 10) / 10; // 0.0 to 0.9
+    return (36.3 + tempOffset).toFixed(1);
+  };
+  const temp = getTemp(patientId);
+
+  // Animate ECG, SpO2, and RESP curves on separate canvas elements
   useEffect(() => {
     const ecgCanvas = ecgCanvasRef.current;
     const spo2Canvas = spo2CanvasRef.current;
-    if (!ecgCanvas || !spo2Canvas) return;
+    const respCanvas = respCanvasRef.current;
+    if (!ecgCanvas || !spo2Canvas || !respCanvas) return;
 
     const ecgCtx = ecgCanvas.getContext("2d");
     const spo2Ctx = spo2Canvas.getContext("2d");
-    if (!ecgCtx || !spo2Ctx) return;
+    const respCtx = respCanvas.getContext("2d");
+    if (!ecgCtx || !spo2Ctx || !respCtx) return;
 
     let animationFrameId: number;
     let x = 0;
@@ -69,10 +83,12 @@ const BedMonitorBox = ({
     // Buffers for seamless sweep drawing
     const ecgYBuffer = new Array(width).fill(height / 2);
     const spo2YBuffer = new Array(width).fill(height / 2);
+    const respYBuffer = new Array(width).fill(height * 0.7);
 
-    // Dynamic wave settings based on heart rate
+    // Dynamic wave settings based on heart rate & resp rate
     let beatTimer = 0;
-    const beatInterval = 60 / hr * 60; // Approximate frames per beat at 60fps
+    const beatInterval = (60 / hr) * 60; // Approximate frames per beat at 60fps
+    const respInterval = (60 / resp) * 60; // Approximate frames per breath at 60fps
 
     const draw = () => {
       beatTimer++;
@@ -83,55 +99,62 @@ const BedMonitorBox = ({
       
       if (t > 10 && t < 14) {
         // P-wave
-        ecgY -= 4;
+        ecgY -= height * 0.12;
       } else if (t >= 14 && t <= 16) {
         // flat
       } else if (t === 18) {
         // Q-dip
-        ecgY += 6;
+        ecgY += height * 0.15;
       } else if (t >= 19 && t <= 21) {
         // R-peak (tall)
-        ecgY -= 28;
+        ecgY -= height * 0.42;
       } else if (t >= 22 && t <= 24) {
         // S-dip (deep)
-        ecgY += 12;
+        ecgY += height * 0.22;
       } else if (t >= 25 && t <= 28) {
         // flat
       } else if (t > 29 && t < 37) {
         // T-wave
-        ecgY -= 8;
+        ecgY -= height * 0.15;
       }
 
       // Add minor high-frequency electrical noise
-      ecgY += (Math.random() - 0.5) * 1.5;
+      ecgY += (Math.random() - 0.5) * 0.8;
 
       // SpO2 Pleth wave simulation
       const angle = (beatTimer / beatInterval) * Math.PI * 2;
+      let spo2Y = height / 2 + Math.sin(angle) * (height * 0.22);
       // Dicrotic notch representation
-      let spo2Y = height / 2 + Math.sin(angle) * 10;
-      if (angle % (Math.PI * 2) > Math.PI * 0.8 && angle % (Math.PI * 2) < Math.PI * 1.2) {
-        spo2Y += 3; // notch dip
+      const phase = angle % (Math.PI * 2);
+      if (phase > Math.PI * 0.9 && phase < Math.PI * 1.3) {
+        spo2Y += height * 0.08; // notch dip
       }
-      spo2Y += (Math.random() - 0.5) * 0.8;
+      spo2Y += (Math.random() - 0.5) * 0.5;
+
+      // RESP wave simulation (Slower sine wave)
+      const respAngle = (beatTimer / respInterval) * Math.PI * 2;
+      let respY = height * 0.65 + Math.sin(respAngle) * (height * 0.25);
+      respY += (Math.random() - 0.5) * 0.4;
 
       // Update sweep positions
-      ecgYBuffer[x] = ecgY;
-      spo2YBuffer[x] = spo2Y;
+      ecgYBuffer[Math.floor(x)] = ecgY;
+      spo2YBuffer[Math.floor(x)] = spo2Y;
+      respYBuffer[Math.floor(x)] = respY;
 
       // Render ECG Canvas
-      ecgCtx.fillStyle = "#fafafa";
+      ecgCtx.fillStyle = "#090d16";
       ecgCtx.fillRect(0, 0, width, height);
 
-      // Draw faint grid grid
-      ecgCtx.strokeStyle = "rgba(16, 185, 129, 0.06)";
-      ecgCtx.lineWidth = 1;
-      for (let j = 0; j < width; j += 15) {
+      // Draw faint grid
+      ecgCtx.strokeStyle = "rgba(239, 68, 68, 0.06)"; // faint red grids like real paper
+      ecgCtx.lineWidth = 0.5;
+      for (let j = 0; j < width; j += 10) {
         ecgCtx.beginPath();
         ecgCtx.moveTo(j, 0);
         ecgCtx.lineTo(j, height);
         ecgCtx.stroke();
       }
-      for (let j = 0; j < height; j += 15) {
+      for (let j = 0; j < height; j += 10) {
         ecgCtx.beginPath();
         ecgCtx.moveTo(0, j);
         ecgCtx.lineTo(width, j);
@@ -139,43 +162,76 @@ const BedMonitorBox = ({
       }
 
       // Drawing sweep trace
-      ecgCtx.strokeStyle = isActivePatient ? "#10b981" : "#059669";
-      ecgCtx.lineWidth = 1.8;
+      ecgCtx.strokeStyle = isActivePatient ? "#22c55e" : "#16a34a"; // Glowing neon green
+      ecgCtx.shadowColor = isActivePatient ? "#22c55e" : "transparent";
+      ecgCtx.shadowBlur = isActivePatient ? 3 : 0;
+      ecgCtx.lineWidth = 1.5;
       ecgCtx.beginPath();
       for (let i = 0; i < width; i++) {
         // Draw gap ahead of scan-bar
-        if (Math.abs(i - x) < 8) continue;
+        if (Math.abs(i - x) < 6) continue;
         if (i === 0) ecgCtx.moveTo(i, ecgYBuffer[i]);
         else ecgCtx.lineTo(i, ecgYBuffer[i]);
       }
       ecgCtx.stroke();
+      ecgCtx.shadowBlur = 0;
 
       // Render SpO2 Canvas
-      spo2Ctx.fillStyle = "#fafafa";
+      spo2Ctx.fillStyle = "#090d16";
       spo2Ctx.fillRect(0, 0, width, height);
 
       // Draw faint SpO2 grid
       spo2Ctx.strokeStyle = "rgba(6, 182, 212, 0.06)";
-      spo2Ctx.lineWidth = 1;
-      for (let j = 0; j < width; j += 15) {
+      spo2Ctx.lineWidth = 0.5;
+      for (let j = 0; j < width; j += 10) {
         spo2Ctx.beginPath();
         spo2Ctx.moveTo(j, 0);
         spo2Ctx.lineTo(j, height);
         spo2Ctx.stroke();
       }
 
-      spo2Ctx.strokeStyle = isActivePatient ? "#06b6d4" : "#0891b2";
-      spo2Ctx.lineWidth = 1.8;
+      spo2Ctx.strokeStyle = isActivePatient ? "#06b6d4" : "#0891b2"; // Glowing cyan
+      spo2Ctx.shadowColor = isActivePatient ? "#06b6d4" : "transparent";
+      spo2Ctx.shadowBlur = isActivePatient ? 3 : 0;
+      spo2Ctx.lineWidth = 1.5;
       spo2Ctx.beginPath();
       for (let i = 0; i < width; i++) {
-        if (Math.abs(i - x) < 8) continue;
+        if (Math.abs(i - x) < 6) continue;
         if (i === 0) spo2Ctx.moveTo(i, spo2YBuffer[i]);
         else spo2Ctx.lineTo(i, spo2YBuffer[i]);
       }
       spo2Ctx.stroke();
+      spo2Ctx.shadowBlur = 0;
+
+      // Render RESP Canvas
+      respCtx.fillStyle = "#090d16";
+      respCtx.fillRect(0, 0, width, height);
+
+      // Draw faint RESP grid
+      respCtx.strokeStyle = "rgba(234, 179, 8, 0.06)";
+      respCtx.lineWidth = 0.5;
+      for (let j = 0; j < width; j += 10) {
+        respCtx.beginPath();
+        respCtx.moveTo(j, 0);
+        respCtx.lineTo(j, height);
+        respCtx.stroke();
+      }
+
+      respCtx.strokeStyle = isActivePatient ? "#eab308" : "#ca8a04"; // Glowing yellow
+      respCtx.shadowColor = isActivePatient ? "#eab308" : "transparent";
+      respCtx.shadowBlur = isActivePatient ? 3 : 0;
+      respCtx.lineWidth = 1.5;
+      respCtx.beginPath();
+      for (let i = 0; i < width; i++) {
+        if (Math.abs(i - x) < 6) continue;
+        if (i === 0) respCtx.moveTo(i, respYBuffer[i]);
+        else respCtx.lineTo(i, respYBuffer[i]);
+      }
+      respCtx.stroke();
+      respCtx.shadowBlur = 0;
 
       // Increment scan bar
-      x = (x + 1.5) % width;
+      x = (x + 1.2) % width;
 
       animationFrameId = requestAnimationFrame(draw);
     };
@@ -185,95 +241,125 @@ const BedMonitorBox = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [hr, isActivePatient]);
+  }, [hr, resp, isActivePatient]);
 
   return (
-    <div className={`bg-white border rounded-lg p-2.5 flex flex-col justify-between overflow-hidden relative shadow-sm ${
+    <div className={`bg-[#050a15] border rounded-lg p-2.5 flex flex-col justify-between overflow-hidden relative shadow-md transition-all ${
       isActivePatient 
-        ? "border-emerald-500 ring-1 ring-emerald-500/20 bg-emerald-50/10" 
-        : "border-slate-200"
+        ? "border-emerald-500 ring-2 ring-emerald-500/30" 
+        : "border-slate-800"
     }`}>
       {/* Top Details bar inside slot */}
-      <div className="flex justify-between items-center mb-1.5 border-b border-slate-100 pb-1">
-        <div className="flex items-center gap-1.5">
-          <span className={`text-[10px] px-1.5 py-0.2 rounded font-sans font-bold ${
-            isActivePatient ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"
+      <div className="flex justify-between items-center mb-1.5 border-b border-slate-800/80 pb-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`text-[9px] px-1.5 py-0.2 rounded font-sans font-bold ${
+            isActivePatient ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-400"
           }`}>
             {bedNo}
           </span>
-          <span className="font-bold text-slate-800 text-[11px] truncate max-w-[55px]">
+          <span className="font-bold text-white text-[11px] truncate max-w-[65px]">
             {patientName}
           </span>
-          <span className="text-[9px] text-slate-400">{age}岁</span>
+          <span className="text-[9px] text-slate-400 shrink-0">{age}岁</span>
         </div>
         
-        {isActivePatient && (
-          <span className="text-[8px] px-1 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 font-sans animate-pulse">
-            区域{stage} AOA投屏中
+        {isActivePatient ? (
+          <span className="text-[8px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-sans font-medium shrink-0 animate-pulse">
+            实时监护中
+          </span>
+        ) : (
+          <span className="text-[8px] px-1 py-0.2 rounded bg-slate-800 text-slate-500 font-sans shrink-0">
+            常规床旁
           </span>
         )}
       </div>
 
       {/* Main clinical metrics grid + waves layout */}
       <div className="grid grid-cols-12 gap-2 flex-1 items-stretch">
-        {/* Waveforms (Left 7 cols) */}
-        <div className="col-span-7 flex flex-col gap-1 justify-center">
+        {/* Waveforms (Left 7 cols) - Clean header block separating text label from canvas drawings to prevent overlap */}
+        <div className="col-span-7 flex flex-col gap-1.5 justify-between py-0.5">
           {/* ECG Trace container */}
-          <div className="flex flex-col relative bg-slate-50 rounded overflow-hidden flex-1 border border-slate-100">
-            <span className="absolute top-0.5 left-1 text-[7px] text-emerald-600 font-bold z-10 flex items-center gap-0.5">
-              <Heart className="w-2 h-2 text-emerald-500 animate-pulse" />
-              ECG II
-            </span>
-            <canvas ref={ecgCanvasRef} width={130} height={40} className="w-full h-full block" />
+          <div className="flex flex-col bg-[#090d16] rounded overflow-hidden flex-1 border border-slate-800/50">
+            <div className="flex items-center justify-between px-1.5 py-0.5 bg-[#0c1220] select-none leading-none border-b border-slate-800/30">
+              <span className="text-[7px] text-emerald-400 font-bold flex items-center gap-0.5">
+                <Heart className="w-1.5 h-1.5 text-emerald-400 animate-pulse" />
+                ECG II
+              </span>
+              <span className="text-[5px] text-slate-500 font-mono">X1.0</span>
+            </div>
+            <div className="flex-1 relative min-h-0">
+              <canvas ref={ecgCanvasRef} width={150} height={20} className="w-full h-full block" />
+            </div>
           </div>
           
           {/* SpO2 Trace container */}
-          <div className="flex flex-col relative bg-slate-50 rounded overflow-hidden flex-1 border border-slate-100">
-            <span className="absolute top-0.5 left-1 text-[7px] text-cyan-600 font-bold z-10">
-              SPO2 PLETH
-            </span>
-            <canvas ref={spo2CanvasRef} width={130} height={40} className="w-full h-full block" />
+          <div className="flex flex-col bg-[#090d16] rounded overflow-hidden flex-1 border border-slate-800/50">
+            <div className="flex items-center justify-between px-1.5 py-0.5 bg-[#0c1220] select-none leading-none border-b border-slate-800/30">
+              <span className="text-[7px] text-cyan-400 font-bold">SPO2</span>
+              <span className="text-[5px] text-slate-500 font-mono">X1.0</span>
+            </div>
+            <div className="flex-1 relative min-h-0">
+              <canvas ref={spo2CanvasRef} width={150} height={20} className="w-full h-full block" />
+            </div>
+          </div>
+
+          {/* RESP Trace container */}
+          <div className="flex flex-col bg-[#090d16] rounded overflow-hidden flex-1 border border-slate-800/50">
+            <div className="flex items-center justify-between px-1.5 py-0.5 bg-[#0c1220] select-none leading-none border-b border-slate-800/30">
+              <span className="text-[7px] text-yellow-500 font-bold">RESP CO2</span>
+              <span className="text-[5px] text-slate-500 font-mono">X1.0</span>
+            </div>
+            <div className="flex-1 relative min-h-0">
+              <canvas ref={respCanvasRef} width={150} height={20} className="w-full h-full block" />
+            </div>
           </div>
         </div>
 
-        {/* Vitals Digital readout (Right 5 cols) */}
-        <div className="col-span-5 grid grid-rows-3 gap-1 text-[10px] font-mono leading-none">
-          {/* HR readout */}
-          <div className="bg-slate-50/50 border border-slate-150 rounded p-1 flex justify-between items-center">
-            <div className="flex flex-col">
-              <span className="text-[7px] text-emerald-600 font-sans font-bold">心率 HR</span>
-              <span className="text-[7px] text-slate-400">bpm</span>
+        {/* Vitals Digital readout (Right 5 cols) - Fully stacked with TEMP removed */}
+        <div className="col-span-5 flex flex-col gap-1 justify-between font-mono py-0.5">
+          {/* HR block */}
+          <div className="bg-slate-900/80 border border-slate-800/80 rounded px-1.5 py-1.5 flex items-center justify-between flex-1">
+            <span className="text-[7.5px] text-emerald-500 font-sans font-bold">HR</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-sm font-bold text-emerald-400 leading-none">{hr}</span>
+              <span className="text-[5.5px] text-slate-500 font-sans leading-none">bpm</span>
             </div>
-            <span className="text-sm font-bold text-emerald-600">{hr}</span>
           </div>
 
-          {/* SpO2 readout */}
-          <div className="bg-slate-50/50 border border-slate-150 rounded p-1 flex justify-between items-center">
-            <div className="flex flex-col">
-              <span className="text-[7px] text-cyan-600 font-sans font-bold">血氧 SpO2</span>
-              <span className="text-[7px] text-slate-400">%</span>
+          {/* SPO2 block */}
+          <div className="bg-slate-900/80 border border-slate-800/80 rounded px-1.5 py-1.5 flex items-center justify-between flex-1">
+            <span className="text-[7.5px] text-cyan-400 font-sans font-bold">SPO2</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-sm font-bold text-cyan-400 leading-none">{spo2}</span>
+              <span className="text-[5.5px] text-slate-500 font-sans leading-none">%</span>
             </div>
-            <span className="text-sm font-bold text-cyan-600">{spo2}</span>
           </div>
 
-          {/* BP readout */}
-          <div className="bg-slate-50/50 border border-slate-150 rounded p-1 flex flex-col justify-center">
-            <span className="text-[7px] text-amber-600 font-sans font-bold mb-0.5">血压 NIBP</span>
-            <div className="flex justify-between items-baseline">
-              <span className="text-[7px] text-slate-400">mmHg</span>
-              <span className="text-[11px] font-bold text-amber-600 leading-none">
-                {sbp}/{dbp}
-              </span>
+          {/* NIBP Block */}
+          <div className="bg-slate-900/80 border border-slate-800/80 rounded px-1.5 py-1.5 flex items-center justify-between flex-1">
+            <span className="text-[7.5px] text-amber-500 font-sans font-bold">NIBP</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-xs font-bold text-amber-400 leading-none">{sbp}/{dbp}</span>
+              <span className="text-[5.5px] text-slate-500 font-sans leading-none">mmHg</span>
+            </div>
+          </div>
+
+          {/* RESP block */}
+          <div className="bg-slate-900/80 border border-slate-800/80 rounded px-1.5 py-1.5 flex items-center justify-between flex-1">
+            <span className="text-[7.5px] text-yellow-500 font-sans font-bold">RR</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-sm font-bold text-yellow-400 leading-none">{resp}</span>
+              <span className="text-[5.5px] text-slate-500 font-sans leading-none">/min</span>
             </div>
           </div>
         </div>
       </div>
       
       {/* Footer Tracker ID and signal strength */}
-      <div className="flex justify-between items-center text-[8px] text-slate-400 mt-1 pt-1 border-t border-slate-100 font-mono">
-        <span>追踪号: {patientId}</span>
+      <div className="flex justify-between items-center text-[8px] text-slate-500 mt-1.5 pt-1 border-t border-slate-800/80 font-mono">
+        <span>AOA标签: {patientId.slice(0, 8)}...</span>
         <span className="text-emerald-500/60 flex items-center gap-0.5 font-bold">
-          <Wifi className="w-2.5 h-2.5" />
+          <Wifi className="w-2 h-2" />
           -48dBm
         </span>
       </div>
@@ -327,7 +413,9 @@ export default function Monitor55Inch({ patients, activeArea }: Monitor55InchPro
           <Tv className="w-5 h-5 text-blue-600 animate-pulse" />
           <div>
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-sans">
-              智能大屏: {activeArea === 5 ? "【区域5】操作间外等候区" : "【区域8】二级PACU复苏区"} 55寸物理大屏幕
+              {activeArea === 5 
+                ? "智能大屏：【区域5】操作间外55寸监护显示屏" 
+                : "智能大屏：【区域8】二级PACU复苏区55寸监护显示屏"}
             </h3>
             <span className="text-[9px] text-slate-400 font-sans">
               位置接力投屏终端 (AOA Screen Casting Broker Client)
@@ -354,7 +442,7 @@ export default function Monitor55Inch({ patients, activeArea }: Monitor55InchPro
       </div>
 
       {/* Screen area with 8 bento-grid monitors */}
-      <div className="bg-slate-50/50 flex-1 p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="bg-[#0b0f19] flex-1 p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
         {allSlots.map((slot, index) => (
           <BedMonitorBox
             key={slot.patientId + index}

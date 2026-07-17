@@ -12,6 +12,7 @@ interface AoaMapProps {
   selectedPatient: Patient | null;
   onSelectPatient: (patient: Patient) => void;
   telemetryLogs: TelemetryEvent[];
+  setActiveTab?: (tab: string) => void;
 }
 
 // Region boundary definition with Clean Minimalism pastel colors for light background
@@ -22,9 +23,10 @@ const REGIONS = [
   { id: 4, name: "区域4: 穿刺准备区", x: 10, y: 40, w: 25, h: 22, color: "border-emerald-200 bg-emerald-50/50", desc: "静脉留置针操作" },
   { id: 5, name: "区域5: 操作外等候区", x: 40, y: 40, w: 22, h: 22, color: "border-amber-200 bg-amber-50/50", desc: "可穿戴绑定、55\"投屏" },
   { id: 6, name: "区域6: 手术操作间", x: 67, y: 40, w: 25, h: 22, color: "border-purple-200 bg-purple-50/50", desc: "内镜检查、24\"独占投屏" },
-  { id: 7, name: "区域7: 一级复苏PACU", x: 10, y: 68, w: 32, h: 24, color: "border-rose-200 bg-rose-50/50", desc: "12号床、24\"独立监护" },
-  { id: 8, name: "区域8: 二级复苏PACU", x: 47, y: 68, w: 28, h: 24, color: "border-pink-200 bg-pink-50/50", desc: "14号座、55\"多格监护" },
-  { id: 9, name: "区域9: 自动记录归档", x: 80, y: 68, w: 12, h: 24, color: "border-teal-200 bg-teal-50/50", desc: "评分、解绑、自动记录生成" }
+  { id: 7, name: "区域7: 一级复苏PACU", x: 10, y: 68, w: 25, h: 24, color: "border-rose-200 bg-rose-50/50", desc: "12号床、24\"独立监护" },
+  { id: 8, name: "区域8: 二级复苏PACU", x: 38, y: 68, w: 23, h: 24, color: "border-pink-200 bg-pink-50/50", desc: "14号座、55\"多格监护" },
+  { id: 9, name: "区域9: 自动记录归档", x: 64, y: 68, w: 16, h: 24, color: "border-teal-200 bg-teal-50/50", desc: "评分、解绑、自动记录生成" },
+  { id: 10, name: "区域10: 检查结束", x: 83, y: 68, w: 14, h: 24, color: "border-emerald-200 bg-emerald-50/50", desc: "点击生成麻醉记录单" }
 ];
 
 // AP Anchor positions (AOA Locator system)
@@ -33,8 +35,8 @@ const AP_ANCHORS = [
   { id: "AP-02", name: "基站 02 (区域3)", x: 80, y: 18 },
   { id: "AP-03", name: "基站 03 (区域4/5)", x: 35, y: 48 },
   { id: "AP-04", name: "基站 04 (区域6)", x: 80, y: 48 },
-  { id: "AP-05", name: "基站 05 (一级PACU-床12/13)", x: 20, y: 78 },
-  { id: "AP-06", name: "基站 06 (二级PACU-座14/15)", x: 65, y: 78 }
+  { id: "AP-05", name: "基站 05 (一级PACU-床12/13)", x: 22, y: 78 },
+  { id: "AP-06", name: "基站 06 (二级PACU-座14/15)", x: 49, y: 78 }
 ];
 
 // Map patient stage to concrete x/y coordinates inside the region for visualization
@@ -56,17 +58,19 @@ export const getPatientCoordinates = (stage: number, patId: string) => {
     case 6: 
       return { x: 79 + offset, y: 51 + offset2 };
     case 7: 
-      return { x: 20 + offset * 0.8, y: 76 + offset2 * 0.8 }; 
+      return { x: 22 + offset * 0.6, y: 76 + offset2 * 0.8 }; 
     case 8: 
-      return { x: 61 + offset * 0.8, y: 76 + offset2 * 0.8 };
+      return { x: 49 + offset * 0.6, y: 76 + offset2 * 0.8 };
     case 9: 
-      return { x: 86, y: 80 };
+      return { x: 72, y: 80 };
+    case 10:
+      return { x: 90, y: 80 };
     default:
       return { x: 50, y: 50 };
   }
 };
 
-export default function AoaMap({ patients, selectedPatient, onSelectPatient, telemetryLogs }: AoaMapProps) {
+export default function AoaMap({ patients, selectedPatient, onSelectPatient, telemetryLogs, setActiveTab }: AoaMapProps) {
   const [hoveredRegion, setHoveredRegion] = useState<number | null>(null);
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
 
@@ -112,7 +116,7 @@ export default function AoaMap({ patients, selectedPatient, onSelectPatient, tel
         {/* Compass element */}
         <div className="absolute top-3 right-3 text-slate-400 flex items-center gap-1 pointer-events-none font-sans text-[11px] font-medium">
           <Compass className="w-3.5 h-3.5" />
-          <span>华西流线平面</span>
+          <span>智能内镜检查流程</span>
         </div>
 
         {/* Areas / Regions Map Blocks */}
@@ -140,7 +144,12 @@ export default function AoaMap({ patients, selectedPatient, onSelectPatient, tel
               onMouseLeave={() => setHoveredRegion(null)}
               onClick={() => {
                 const pat = patients.find(p => p.currentStage === region.id);
-                if (pat) onSelectPatient(pat);
+                if (pat) {
+                  onSelectPatient(pat);
+                }
+                if (region.id === 10 && setActiveTab) {
+                  setActiveTab("record");
+                }
               }}
             >
               {/* Region Label */}
@@ -186,6 +195,12 @@ export default function AoaMap({ patients, selectedPatient, onSelectPatient, tel
               {region.id === 6 && (
                 <div className="text-[8.5px] text-purple-700 pointer-events-none text-center bg-purple-50 border border-purple-200/80 rounded py-0.5 px-1 font-sans">
                   🖥️ OR Bedside(24“)
+                </div>
+              )}
+
+              {region.id === 10 && (
+                <div className="text-[8.5px] text-emerald-700 pointer-events-none text-center bg-emerald-50 border border-emerald-200/80 rounded py-0.5 px-1 font-sans font-bold flex items-center justify-center gap-0.5">
+                  📄 点击生成记录单
                 </div>
               )}
 
@@ -252,7 +267,7 @@ export default function AoaMap({ patients, selectedPatient, onSelectPatient, tel
           return (
             <React.Fragment key={pat.id}>
               {/* Dynamic dashed path */}
-              {pat.sensorConnected && pat.currentStage !== 9 && (
+              {pat.sensorConnected && pat.currentStage !== 9 && pat.currentStage !== 10 && (
                 <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
                   <line
                     x1={`${coords.x}%`}
@@ -276,7 +291,7 @@ export default function AoaMap({ patients, selectedPatient, onSelectPatient, tel
                 className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 p-1 px-1.5 rounded-full border transition-all duration-300 cursor-pointer z-30 ${
                   isSelected
                     ? "bg-[#2563eb] text-white border-white font-bold scale-110 shadow-[0_2px_8px_rgba(37,99,235,0.4)]"
-                    : pat.currentStage === 9
+                    : (pat.currentStage === 9 || pat.currentStage === 10)
                     ? "bg-slate-200 text-slate-500 border-slate-300"
                     : "bg-white text-slate-800 border-slate-300 hover:border-blue-500 shadow-sm"
                 }`}
@@ -286,7 +301,7 @@ export default function AoaMap({ patients, selectedPatient, onSelectPatient, tel
                 }}
                 title={`${pat.name} - 阶段${pat.currentStage}`}
               >
-                {pat.sensorConnected && pat.currentStage !== 9 && (
+                {pat.sensorConnected && pat.currentStage !== 9 && pat.currentStage !== 10 && (
                   <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-emerald-500"} animate-pulse`} />
                 )}
                 

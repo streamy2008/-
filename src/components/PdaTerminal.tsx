@@ -238,6 +238,17 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
     onLogEvent("CAST_TRIGGER", `投屏注销：14号座位屏幕清屏，退出二级PACU监护大屏投屏显示`, 240);
   };
 
+  // Move patient to Area 10 (End of process, generate anesthesia record)
+  const handleTransitionToStage10 = () => {
+    if (!selectedPatient) return;
+    const updated: Patient = {
+      ...selectedPatient,
+      currentStage: 10
+    };
+    onUpdatePatient(updated);
+    onLogEvent("AOA_POSITION", `AOA定位：检查结束，患者 ${selectedPatient.name} 离开二级PACU，流转至区域10 (检查结束) 并自动生成最终电子麻醉记录单。`);
+  };
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden h-full flex flex-col font-sans select-none shadow-sm">
       {/* Handheld Case Header */}
@@ -600,7 +611,7 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
               <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-col gap-3 shadow-sm">
                 <div className="font-bold text-slate-800 border-b border-slate-150 pb-1.5 flex items-center gap-1.5">
                   <CheckCircle className="w-4 h-4 text-emerald-600" />
-                  步骤9：监护结束，已归档归西
+                  步骤9：监护结束，已归档保存
                 </div>
                 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded flex flex-col gap-2">
                   <span className="font-bold">电子麻醉记录单已锁定保存！</span>
@@ -610,6 +621,34 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
                   <div className="border-t border-emerald-200 pt-1.5 text-[10px] text-slate-500 font-mono">
                     <div>护士电子签名: {selectedPatient.aldreteScore?.nurseSignature}</div>
                     <div>出室时间: {selectedPatient.timeLogs.discharged ? new Date(selectedPatient.timeLogs.discharged).toLocaleTimeString() : "-"}</div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleTransitionToStage10}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded text-center text-xs shadow-sm cursor-pointer flex items-center justify-center gap-1 transition-all border border-emerald-600 mt-1 animate-pulse"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  检查结束，点击生成麻醉记录单 (区域10)
+                </button>
+              </div>
+            )}
+
+            {/* Step 10: Process finished */}
+            {selectedPatient.currentStage === 10 && (
+              <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-col gap-3 shadow-sm">
+                <div className="font-bold text-slate-800 border-b border-slate-150 pb-1.5 flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-emerald-600" />
+                  步骤10：智能内镜检查结束
+                </div>
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded flex flex-col gap-2">
+                  <span className="font-bold">🎉 检查流转已全部结束</span>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    患者已完成全部检查、复苏与评定流转。电子麻醉记录单已按国家 <b>《WS 329-2024》</b> 规范成功生成，点击页面上方 <b>【电子麻醉记录单】</b> 标签可打印、导出或留存。
+                  </p>
+                  <div className="border-t border-emerald-200 pt-1.5 text-[10px] text-slate-500 font-mono">
+                    <div>当前状态: 检查流程结束</div>
+                    <div>归档状态: 电子麻醉记录单生成完毕</div>
                   </div>
                 </div>
               </div>

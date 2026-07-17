@@ -222,11 +222,11 @@ export default function App() {
     const autopilotTimer = setInterval(() => {
       // Find index
       const currStage = selectedPatient.currentStage;
-      if (currStage < 9) {
+      if (currStage < 10) {
         handleAdvanceStage(selectedPatient, currStage + 1);
       } else {
         setIsAutopilot(false);
-        handleLogEvent("COMPLIANCE_ALARM", `仿真播放结束：患者 ${selectedPatient.name} 已经达到最终的步骤9归档。`);
+        handleLogEvent("COMPLIANCE_ALARM", `仿真播放结束：患者 ${selectedPatient.name} 已经达到最终的步骤10检查结束。`);
       }
     }, 12000); // Advance stage every 12 seconds in autopilot mode
 
@@ -281,6 +281,9 @@ export default function App() {
       // To reach 9, we need Aldrete score populating first.
       handleLogEvent("COMPLIANCE_ALARM", `合规核实：患者 ${pat.name} 准备办理出院。触发系统核对推送：PDA端强制限时Modified Aldrete出室评分！`);
       setActiveTab("pda");
+    } else if (nextStage === 10) {
+      handleLogEvent("AOA_POSITION", `AOA定位：检查结束。患者 ${pat.name} 离开二级PACU，转运入【区域10 (检查结束)】并自动生成电子麻醉记录单。`);
+      setActiveTab("record");
     }
 
     // Save sampling points history on stage changes to populate the grid chart WS 329-2024
@@ -411,7 +414,8 @@ export default function App() {
                         else if (pat.currentStage === 6) setActiveTab("m24_area6");
                         else if (pat.currentStage === 7) setActiveTab("m24_area7");
                         else if (pat.currentStage === 8) setActiveTab("m55_area8");
-                        else if (pat.currentStage === 9) setActiveTab("record");
+                        else if (pat.currentStage === 9 && !pat.isLocked) setActiveTab("pda");
+                        else if (pat.currentStage >= 9) setActiveTab("record");
                       }}
                       className={`p-3 rounded-lg border transition-all cursor-pointer flex flex-col gap-1.5 ${
                         isSelected 
@@ -427,16 +431,16 @@ export default function App() {
                           </span>
                         </div>
                         <span className={`text-[8px] font-sans px-1.5 py-0.2 rounded font-bold ${
-                          pat.currentStage === 9 
+                          pat.currentStage >= 9 
                             ? "bg-slate-100 text-slate-500" 
                             : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                         }`}>
-                          步骤 {pat.currentStage}/9
+                          步骤 {pat.currentStage}/10
                         </span>
                       </div>
 
                       {/* Vitals snapshot mini-badge */}
-                      {pat.sensorConnected && pat.currentStage !== 9 ? (
+                      {pat.sensorConnected && pat.currentStage < 9 ? (
                         <div className="flex items-center justify-between text-[9px] font-mono bg-slate-50 p-1 px-1.5 rounded border border-slate-150 shadow-sm">
                           <span className="text-emerald-600 font-bold flex items-center gap-0.5 font-mono">
                             <Heart className="w-2.5 h-2.5 animate-pulse text-rose-500" />
@@ -492,6 +496,7 @@ export default function App() {
               selectedPatient={selectedPatient} 
               onSelectPatient={(p) => setSelectedPatientId(p.id)}
               telemetryLogs={telemetryLogs}
+              setActiveTab={setActiveTab}
             />
           </div>
 
@@ -620,11 +625,11 @@ export default function App() {
                         </button>
                         <button
                           onClick={() => {
-                            if (selectedPatient.currentStage < 9) {
+                            if (selectedPatient.currentStage < 10) {
                               handleAdvanceStage(selectedPatient, selectedPatient.currentStage + 1);
                             }
                           }}
-                          disabled={selectedPatient.currentStage >= 9}
+                          disabled={selectedPatient.currentStage >= 10}
                           className="p-1 px-2 text-[10px] bg-[#2563eb] hover:bg-blue-700 text-white rounded border border-blue-600 text-center font-bold cursor-pointer transition-colors"
                         >
                           下一步
@@ -768,7 +773,7 @@ export default function App() {
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-emerald-500" />
           <span>
-            《WS 329-2024 麻醉记录单标准》和《华西内镜平面流线设计》数字孪生追踪模拟演示系统
+            《WS 329-2024 麻醉记录单标准》和《智能内镜检查流程》数字孪生追踪模拟演示系统
           </span>
         </div>
         <div className="font-sans text-slate-400">
