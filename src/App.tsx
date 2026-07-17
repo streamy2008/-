@@ -253,7 +253,9 @@ export default function App() {
     let finalConnected = pat.sensorConnected;
     let finalMac = pat.sensorMac;
 
-    if (nextStage === 2) {
+    if (nextStage === 1) {
+      handleLogEvent("AOA_POSITION", `AOA检测：患者 ${pat.name} 移动至登记等候区(区域1)`);
+    } else if (nextStage === 2) {
       updatedTimeLogs.anesthesiaAssess = nowStr;
       handleLogEvent("AOA_POSITION", `AOA检测：患者 ${pat.name} 移动至评估室(区域2)`);
     } else if (nextStage === 3) {
@@ -440,9 +442,6 @@ export default function App() {
                 </span>
               </h1>
             </div>
-            <p className="text-[11px] text-slate-400 font-sans mt-1">
-              医疗物联网 (IoMT) 演示控制台 • 蓝牙 AOA 到达角亚米高精度定位网关服务一体机
-            </p>
           </div>
 
           {/* Global Indicators stats */}
@@ -814,6 +813,9 @@ export default function App() {
                       onClick={() => {
                         setIsAutopilot(!isAutopilot);
                         if (!isAutopilot) {
+                          if (selectedPatient) {
+                            handleAdvanceStage(selectedPatient, 1);
+                          }
                           handleLogEvent("AOA_POSITION", `系统仿真播放启动：患者将自动按流程漫游投屏(4s/区)`);
                         } else {
                           handleLogEvent("AOA_POSITION", `系统仿真播放暂停`);
