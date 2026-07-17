@@ -342,25 +342,19 @@ export default function AnesthesiaRecord({ patient, onLockRecord }: AnesthesiaRe
             )}
 
             <div>
-              {/* WS 329 Standard ID Header */}
-              <div className="flex justify-between items-start text-[10px] text-slate-700 font-mono select-none">
-                <span className="font-bold border border-slate-400/80 px-1 py-0.2 rounded-xs">附录 B (规范性)</span>
-                <span className="text-right text-xs font-bold text-slate-900 tracking-widest">WS 329—2024</span>
-              </div>
+              {/* WS 329 Standard ID Header - Header markings removed per user request */}
+              <div className="h-4 select-none" />
 
-              {/* Title Header Section */}
+              {/* Title Header Section - Hospital name removed per user request */}
               <div className="text-center mt-3 border-b-2 border-slate-950 pb-2 mb-3">
-                <h2 className="text-lg font-bold font-serif tracking-widest text-slate-950">
-                  ＊ ＊ ＊ ＊ 医 院
-                </h2>
                 <h1 className="text-2xl font-black font-serif tracking-widest text-slate-950 mt-1">
                   麻 醉 记 录
                 </h1>
-                <div className="flex justify-between text-[10px] text-slate-800 font-mono px-0.5 mt-2">
-                  <div>科别: <input type="text" value={formState.department} onChange={(e) => handleInputChange("department", e.target.value)} className="border-b border-dashed border-slate-400 w-24 text-center outline-none bg-transparent" /></div>
-                  <div>病房: <input type="text" value={formState.ward} onChange={(e) => handleInputChange("ward", e.target.value)} className="border-b border-dashed border-slate-400 w-24 text-center outline-none bg-transparent" /></div>
-                  <div className="font-bold">病历号: <span className="underline underline-offset-4 font-bold">{formState.recordId}</span></div>
-                  <div className="text-[9px] text-slate-400">页码：第 1 页/共 2 页</div>
+                <div className="flex justify-between items-center text-[10px] text-slate-900 font-mono px-0.5 mt-2 whitespace-nowrap gap-2">
+                  <div className="flex items-center">科别：<input type="text" value={formState.department} onChange={(e) => handleInputChange("department", e.target.value)} className="border-b border-dashed border-slate-400 w-24 text-center outline-none bg-transparent font-bold text-slate-950" /></div>
+                  <div className="flex items-center">病房：<input type="text" value={formState.ward} onChange={(e) => handleInputChange("ward", e.target.value)} className="border-b border-dashed border-slate-400 w-24 text-center outline-none bg-transparent font-bold text-slate-950" /></div>
+                  <div className="flex items-center font-bold">病历号：<input type="text" value={formState.recordId} onChange={(e) => handleInputChange("recordId", e.target.value)} className="border-b border-dashed border-slate-400 w-24 text-center outline-none bg-transparent font-bold text-slate-950" /></div>
+                  <div className="font-bold text-slate-950">页码：P1/2</div>
                 </div>
               </div>
 
@@ -852,25 +846,19 @@ export default function AnesthesiaRecord({ patient, onLockRecord }: AnesthesiaRe
           <div className="bg-white border border-slate-300 shadow-md p-6 max-w-[760px] w-full min-h-[960px] print:shadow-none print:border-none print-page-container print-page select-text relative flex flex-col justify-between">
             
             <div>
-              {/* Page 2 Headers */}
-              <div className="flex justify-between items-start text-[10px] text-slate-700 font-mono select-none">
-                <span className="font-bold border border-slate-400/80 px-1 py-0.2 rounded-xs">附录 B (规范性) 续</span>
-                <span className="text-right text-xs font-bold text-slate-900 tracking-widest">WS 329—2024</span>
-              </div>
+              {/* Page 2 Headers - Header markings removed per user request */}
+              <div className="h-4 select-none" />
 
-              {/* Title Section */}
+              {/* Title Section - Hospital name removed per user request */}
               <div className="text-center mt-3 border-b-2 border-slate-950 pb-2 mb-3">
-                <h2 className="text-lg font-bold font-serif tracking-widest text-slate-950">
-                  ＊ ＊ ＊ ＊ 医 院
-                </h2>
                 <h1 className="text-2xl font-black font-serif tracking-widest text-slate-950 mt-1">
                   麻 醉 记 录
                 </h1>
-                <div className="flex justify-between text-[10px] text-slate-800 font-mono px-0.5 mt-2">
-                  <div>科别: <span className="underline underline-offset-4">{formState.department}</span></div>
-                  <div>病房: <span className="underline underline-offset-4">{formState.ward}</span></div>
-                  <div className="font-bold">病历号: <span className="underline underline-offset-4 font-bold">{formState.recordId}</span></div>
-                  <div className="text-[9px] text-slate-400">页码：第 2 页/共 2 页</div>
+                <div className="flex justify-between items-center text-[10px] text-slate-900 font-mono px-0.5 mt-2 whitespace-nowrap gap-2">
+                  <div>科别：<span className="underline underline-offset-4 font-bold">{formState.department}</span></div>
+                  <div>病房：<span className="underline underline-offset-4 font-bold">{formState.ward}</span></div>
+                  <div className="font-bold">病历号：<span className="underline underline-offset-4 font-bold">{formState.recordId}</span></div>
+                  <div className="font-bold text-slate-950">页码：P2/2</div>
                 </div>
               </div>
 
@@ -1190,8 +1178,7 @@ export default function AnesthesiaRecord({ patient, onLockRecord }: AnesthesiaRe
             <div className="mt-4 border-t border-slate-400 pt-2 text-[8px] text-slate-500 font-sans leading-relaxed select-none">
               <div><b>注 1:</b> 记录内容包括麻醉诊疗期间产生的所有呼吸系统、循环系统并发症及其他突发异常处置。</div>
               <div><b>注 2:</b> 抢救事件发生时，应及时、详尽补记抢救时间、参与人员姓名及抢救意见，确保在抢救完成6小时内完善签署。</div>
-              <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-1.5 text-[9.5px] text-slate-900 font-medium font-sans">
-                <div>系统核验哈希: <span className="font-mono text-[8px] text-slate-400">WS-329-HASH-{patient.id.split("-")[1] || "DEZ918"}</span></div>
+              <div className="flex justify-end items-center mt-2 border-t border-slate-100 pt-1.5 text-[9.5px] text-slate-900 font-medium font-sans">
                 <div>核签护士: <span className="underline underline-offset-2 font-bold font-serif">{patient.aldreteScore?.nurseSignature || "待签名"}</span></div>
               </div>
             </div>

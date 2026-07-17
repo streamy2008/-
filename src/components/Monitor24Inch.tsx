@@ -220,7 +220,7 @@ export default function Monitor24Inch({ patient, activeArea }: Monitor24InchProp
             <div className="flex-1 flex flex-col relative bg-white border border-slate-100 rounded p-1.5 min-h-[90px] shadow-sm">
               <div className="absolute top-1 left-2 flex items-center gap-1.5 text-[9px] text-cyan-600 font-bold font-sans z-10">
                 <Activity className="w-3 h-3 text-cyan-500" />
-                <span>SPO2 PLETH (光电容积波)</span>
+                <span>SPO2</span>
               </div>
               <div className="flex-1 w-full mt-3 overflow-hidden">
                 <canvas ref={plethCanvasRef} width={450} height={70} className="w-full h-full block" />

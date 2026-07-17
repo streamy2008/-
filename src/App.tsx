@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Activity, Shield, ListCollapse, Play, AlertTriangle, 
   HelpCircle, Sliders, Server, Cpu, Heart, CheckCircle, Flame
@@ -215,23 +215,35 @@ export default function App() {
     setTelemetryLogs(prev => [newLog, ...prev]);
   };
 
+  // Keep refs of selectedPatient and handleAdvanceStage updated to avoid resetting the autopilot timer or closing over stale state
+  const selectedPatientRef = useRef<Patient | null>(null);
+  useEffect(() => {
+    selectedPatientRef.current = selectedPatient;
+  }, [selectedPatient]);
+
+  const handleAdvanceStageRef = useRef<((pat: Patient, nextStage: number) => void) | null>(null);
+
   // Autopilot loop advancing stages periodically to show seamless screen handoffs!
   useEffect(() => {
-    if (!isAutopilot || !selectedPatient) return;
+    if (!isAutopilot) return;
 
     const autopilotTimer = setInterval(() => {
-      // Find index
-      const currStage = selectedPatient.currentStage;
+      const pat = selectedPatientRef.current;
+      if (!pat) return;
+
+      const currStage = pat.currentStage;
       if (currStage < 10) {
-        handleAdvanceStage(selectedPatient, currStage + 1);
+        if (handleAdvanceStageRef.current) {
+          handleAdvanceStageRef.current(pat, currStage + 1);
+        }
       } else {
         setIsAutopilot(false);
-        handleLogEvent("COMPLIANCE_ALARM", `仿真播放结束：患者 ${selectedPatient.name} 已经达到最终的步骤10检查结束。`);
+        handleLogEvent("COMPLIANCE_ALARM", `仿真播放结束：患者 ${pat.name} 已经达到最终的步骤10检查结束。`);
       }
-    }, 12000); // Advance stage every 12 seconds in autopilot mode
+    }, 4000); // Advance stage every 4 seconds in autopilot mode
 
     return () => clearInterval(autopilotTimer);
-  }, [isAutopilot, selectedPatient]);
+  }, [isAutopilot]);
 
   // Stage transitions handoffs logic
   const handleAdvanceStage = (pat: Patient, nextStage: number) => {
@@ -295,7 +307,7 @@ export default function App() {
       spo2: pat.currentVitals.spo2
     };
 
-    const updatedPatients = patients.map(p => {
+    setPatients(prevPatients => prevPatients.map(p => {
       if (p.id === pat.id) {
         return {
           ...p,
@@ -307,10 +319,11 @@ export default function App() {
         };
       }
       return p;
-    });
-
-    setPatients(updatedPatients);
+    }));
   };
+
+  // Sync reference to current handleAdvanceStage on render
+  handleAdvanceStageRef.current = handleAdvanceStage;
 
   // Add a brand new patient
   const handleAddNewPatient = (newPat: Patient) => {
@@ -334,50 +347,209 @@ export default function App() {
     handleLogEvent("SENSOR_BIND", `数据锁定：电子麻醉记录单已正式审核提交、护签名核销锁定，无法任意改动。符合WS 329。`);
   };
 
+  // Real-time Dashboard variables for current area distribution ratio and waiting times
+  const totalPatients = patients.length || 1;
+  const prepCount = patients.filter(p => p.currentStage <= 5).length;
+  const orCount = patients.filter(p => p.currentStage === 6).length;
+  const pacu1Count = patients.filter(p => p.currentStage === 7).length;
+  const pacu2Count = patients.filter(p => p.currentStage === 8).length;
+  const endCount = patients.filter(p => p.currentStage >= 9).length;
+
+  // Ratios based on currently simulated patients
+  const prepRatio = prepCount / totalPatients;
+  const orRatio = orCount / totalPatients;
+  const pacu1Ratio = pacu1Count / totalPatients;
+  const pacu2Ratio = pacu2Count / totalPatients;
+  const endRatio = endCount / totalPatients;
+
+  // Target specifications
+  const totalOnlineTarget = 48;
+  const orCapacity = 15;
+  const pacu1Capacity = 17;
+  const pacu2Capacity = 16;
+
+  // Scale counts to sum to 48
+  let orCountScaled = Math.round(orRatio * totalOnlineTarget);
+  let pacu1CountScaled = Math.round(pacu1Ratio * totalOnlineTarget);
+  let pacu2CountScaled = Math.round(pacu2Ratio * totalOnlineTarget);
+  let endCountScaled = Math.round(endRatio * totalOnlineTarget);
+
+  // Cap physical values according to real bounds
+  orCountScaled = Math.min(orCapacity, orCountScaled);
+  pacu1CountScaled = Math.min(pacu1Capacity, pacu1CountScaled);
+  pacu2CountScaled = Math.min(pacu2Capacity, pacu2CountScaled);
+
+  // Remainder assigned to wait/prep area
+  let prepCountScaled = totalOnlineTarget - orCountScaled - pacu1CountScaled - pacu2CountScaled - endCountScaled;
+  if (prepCountScaled < 0) {
+    endCountScaled = Math.max(0, endCountScaled + prepCountScaled);
+    prepCountScaled = 0;
+  }
+
+  // Calculate scaled percentages for progress bar rendering
+  const prepPctScaled = (prepCountScaled / totalOnlineTarget) * 100;
+  const orPctScaled = (orCountScaled / totalOnlineTarget) * 100;
+  const pacu1PctScaled = (pacu1CountScaled / totalOnlineTarget) * 100;
+  const pacu2PctScaled = (pacu2CountScaled / totalOnlineTarget) * 100;
+  const endPctScaled = (endCountScaled / totalOnlineTarget) * 100;
+
+  const getAverageWaitingTime = (stageGroup: "prep" | "or" | "pacu1" | "pacu2" | "end") => {
+    let baseMin = 12.4;
+    let count = 0;
+    if (stageGroup === "prep") {
+      baseMin = 12.4;
+      count = prepCount;
+    } else if (stageGroup === "or") {
+      baseMin = 28.5;
+      count = orCount;
+    } else if (stageGroup === "pacu1") {
+      baseMin = 35.2;
+      count = pacu1Count;
+    } else if (stageGroup === "pacu2") {
+      baseMin = 24.8;
+      count = pacu2Count;
+    } else {
+      baseMin = 5.0;
+      count = endCount;
+    }
+
+    const congestionFactor = count > 0 ? 1 + (count - 1) * 0.12 : 1.0;
+    const seconds = new Date().getSeconds();
+    const fluctuation = Math.sin(seconds * 0.1) * 0.2;
+
+    const finalMin = Math.max(1.5, baseMin * congestionFactor + fluctuation);
+    return `${finalMin.toFixed(1)}m`;
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       
       {/* Dynamic Top Clinic Operations Control Center Header Bar */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm select-none">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <span className="absolute -inset-1 rounded-full bg-emerald-500/20 blur-sm animate-pulse" />
-              <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+      <header className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm select-none">
+        <div className="flex flex-col md:flex-row md:items-center justify-between w-full xl:w-auto gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <span className="absolute -inset-1 rounded-full bg-emerald-500/20 blur-sm animate-pulse" />
+                <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+              </div>
+              <h1 className="text-base sm:text-lg font-bold tracking-tight font-sans flex items-center gap-2 text-slate-900">
+                智能内镜中心患者监护与全流程追踪系统
+                <span className="text-[10px] font-sans px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/55 font-semibold">
+                  WS 329-2024 合规系统
+                </span>
+              </h1>
             </div>
-            <h1 className="text-base sm:text-lg font-bold tracking-tight font-sans flex items-center gap-2 text-slate-900">
-              智能内镜中心患者监护与全流程追踪系统
-              <span className="text-[10px] font-sans px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/55 font-semibold">
-                WS 329-2024 合规系统
-              </span>
-            </h1>
+            <p className="text-[11px] text-slate-400 font-sans mt-1">
+              医疗物联网 (IoMT) 演示控制台 • 蓝牙 AOA 到达角亚米高精度定位网关服务一体机
+            </p>
           </div>
-          <p className="text-[11px] text-slate-400 font-sans mt-1">
-            医疗物联网 (IoMT) 演示控制台 • 蓝牙 AOA 到达角亚米高精度定位网关服务一体机
-          </p>
+
+          {/* Global Indicators stats */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-slate-500 md:ml-6">
+            <div className="flex items-center gap-2">
+              <Server className="w-4 h-4 text-slate-400" />
+              <div className="flex flex-col">
+                <span className="text-[9px] text-slate-400 leading-none">边缘接收Broker</span>
+                <span className="font-sans text-emerald-600 font-bold">ONLINE (10.0.8.2)</span>
+              </div>
+            </div>
+            <div className="w-px h-6 bg-slate-200 hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-slate-400" />
+              <div className="flex flex-col">
+                <span className="text-[9px] text-slate-400 leading-none">AOA定位精度</span>
+                <span className="font-sans text-emerald-600 font-bold">≤ 0.3m (Static)</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Global Indicators stats */}
-        <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <Server className="w-4 h-4 text-slate-400" />
-            <div className="flex flex-col">
-              <span className="text-[9px] text-slate-400 leading-none">边缘接收Broker</span>
-              <span className="font-sans text-emerald-600 font-bold">ONLINE (10.0.8.2)</span>
+        {/* Real-time Monitoring Overview Dashboard */}
+        <div className="flex flex-wrap lg:flex-nowrap items-center gap-5 bg-slate-50 border border-slate-200 rounded-xl p-3 px-4 shadow-sm w-full xl:w-auto xl:max-w-3xl">
+          {/* Dashboard Header */}
+          <div className="flex flex-col border-r border-slate-200 pr-4 min-w-[100px] justify-center">
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+              实时监护概览
+            </span>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="text-xl font-mono font-black text-slate-800 leading-none">48</span>
+              <span className="text-[10px] text-slate-500 font-bold">人在线</span>
             </div>
           </div>
-          <div className="w-px h-6 bg-slate-200" />
-          <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-slate-400" />
-            <div className="flex flex-col">
-              <span className="text-[9px] text-slate-400 leading-none">AOA定位精度</span>
-              <span className="font-sans text-emerald-600 font-bold">≤ 0.3m (Static)</span>
+
+          {/* Area Distribution Segments */}
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[280px]">
+            <div className="flex justify-between items-center text-[9px] font-medium text-slate-500 leading-none">
+              <span>区域分布与容量监测</span>
+              <span className="font-mono text-[8px] text-slate-400">实时饱和度监控</span>
+            </div>
+            
+            {/* Multi-segment Segmented Progress Bar */}
+            <div className="h-1.5 rounded-full overflow-hidden flex bg-slate-100 w-full min-w-[180px]">
+              <div 
+                className="bg-blue-500 h-full transition-all duration-500 ease-out" 
+                style={{ width: `${prepPctScaled}%` }} 
+                title={`等候流转: ${prepCountScaled}人`} 
+              />
+              <div 
+                className="bg-purple-500 h-full transition-all duration-500 ease-out" 
+                style={{ width: `${orPctScaled}%` }} 
+                title={`手术操作: ${orCountScaled}/${orCapacity}间`} 
+              />
+              <div 
+                className="bg-rose-500 h-full transition-all duration-500 ease-out" 
+                style={{ width: `${pacu1PctScaled}%` }} 
+                title={`一级复苏: ${pacu1CountScaled}/${pacu1Capacity}床`} 
+              />
+              <div 
+                className="bg-orange-400 h-full transition-all duration-500 ease-out" 
+                style={{ width: `${pacu2PctScaled}%` }} 
+                title={`二级复苏: ${pacu2CountScaled}/${pacu2Capacity}床`} 
+              />
+              <div 
+                className="bg-emerald-500 h-full transition-all duration-500 ease-out" 
+                style={{ width: `${endPctScaled}%` }} 
+                title={`检查结束: ${endCountScaled}人`} 
+              />
+            </div>
+
+            {/* Mini Legend labels */}
+            <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[8.5px] font-mono leading-none">
+              <span className="text-blue-600 font-bold">● 等候 {prepCountScaled}人</span>
+              <span className="text-purple-600 font-bold">● 手术 {orCountScaled}/{orCapacity}间</span>
+              <span className="text-rose-600 font-bold">● 一级复苏 {pacu1CountScaled}/{pacu1Capacity}床</span>
+              <span className="text-orange-600 font-bold">● 二级复苏 {pacu2CountScaled}/{pacu2Capacity}床</span>
+              <span className="text-emerald-600 font-bold">● 归档 {endCountScaled}人</span>
             </div>
           </div>
-          <div className="w-px h-6 bg-slate-200" />
-          <div className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-[11px] font-sans font-bold flex items-center gap-1.5 shadow-sm">
-            <Activity className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
-            <span>监护中: {patients.filter(p => p.sensorConnected).length}人</span>
+
+          <div className="hidden lg:block w-px h-10 bg-slate-200" />
+
+          {/* Average Wait Times Grid */}
+          <div className="flex flex-col gap-1 min-w-[200px]">
+            <div className="text-[9px] font-medium text-slate-500 leading-none">
+              区域平均等待时长 (实时)
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] leading-tight">
+              <div className="flex items-center justify-between gap-1 text-slate-600">
+                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-blue-500" />等候区:</span>
+                <span className="font-mono font-bold text-blue-600 bg-blue-50/50 px-1 py-0.2 rounded border border-blue-100/50">{getAverageWaitingTime("prep")}</span>
+              </div>
+              <div className="flex items-center justify-between gap-1 text-slate-600">
+                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-purple-500" />手术室:</span>
+                <span className="font-mono font-bold text-purple-600 bg-purple-50/50 px-1 py-0.2 rounded border border-purple-100/50">{getAverageWaitingTime("or")}</span>
+              </div>
+              <div className="flex items-center justify-between gap-1 text-slate-600">
+                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-rose-500" />一级复苏:</span>
+                <span className="font-mono font-bold text-rose-600 bg-rose-50/50 px-1 py-0.2 rounded border border-rose-100/50">{getAverageWaitingTime("pacu1")}</span>
+              </div>
+              <div className="flex items-center justify-between gap-1 text-slate-600">
+                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-orange-400" />二级复苏:</span>
+                <span className="font-mono font-bold text-orange-600 bg-orange-50/50 px-1 py-0.2 rounded border border-orange-100/50">{getAverageWaitingTime("pacu2")}</span>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -642,7 +814,7 @@ export default function App() {
                       onClick={() => {
                         setIsAutopilot(!isAutopilot);
                         if (!isAutopilot) {
-                          handleLogEvent("AOA_POSITION", `系统仿真播放启动：患者将自动按流程漫游投屏(12s/区)`);
+                          handleLogEvent("AOA_POSITION", `系统仿真播放启动：患者将自动按流程漫游投屏(4s/区)`);
                         } else {
                           handleLogEvent("AOA_POSITION", `系统仿真播放暂停`);
                         }

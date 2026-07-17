@@ -306,7 +306,7 @@ const BedMonitorBox = ({
           {/* RESP Trace container */}
           <div className="flex flex-col bg-[#090d16] rounded overflow-hidden flex-1 border border-slate-800/50">
             <div className="flex items-center justify-between px-1.5 py-0.5 bg-[#0c1220] select-none leading-none border-b border-slate-800/30">
-              <span className="text-[7px] text-yellow-500 font-bold">RESP CO2</span>
+              <span className="text-[7px] text-yellow-500 font-bold">RESP</span>
               <span className="text-[5px] text-slate-500 font-mono">X1.0</span>
             </div>
             <div className="flex-1 relative min-h-0">
