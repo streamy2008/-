@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Activity, Shield, ListCollapse, Play, AlertTriangle, 
-  HelpCircle, Sliders, Server, Cpu, Heart, CheckCircle, Flame
+  HelpCircle, Sliders, Heart, CheckCircle, Flame
 } from "lucide-react";
 import { Patient, Gender, AsaGrade, FastingStatus, TelemetryEvent } from "./types";
 import AoaMap from "./components/AoaMap";
@@ -255,15 +255,19 @@ export default function App() {
 
     if (nextStage === 1) {
       handleLogEvent("AOA_POSITION", `AOA检测：患者 ${pat.name} 移动至登记等候区(区域1)`);
+      setActiveTab("pda");
     } else if (nextStage === 2) {
       updatedTimeLogs.anesthesiaAssess = nowStr;
       handleLogEvent("AOA_POSITION", `AOA检测：患者 ${pat.name} 移动至评估室(区域2)`);
+      setActiveTab("pda");
     } else if (nextStage === 3) {
       updatedTimeLogs.waitingLobby = nowStr;
       handleLogEvent("AOA_POSITION", `AOA检测：患者 ${pat.name} 移动至候诊大厅(区域3)`);
+      setActiveTab("pda");
     } else if (nextStage === 4) {
       updatedTimeLogs.punctureStart = nowStr;
       handleLogEvent("AOA_POSITION", `AOA定位：患者 ${pat.name} 跨AP进入穿刺准备区(区域4)，标记[穿刺准备开始]时间戳`, 140);
+      setActiveTab("pda");
     } else if (nextStage === 5) {
       // Prompt MAC binding if not bound
       if (!pat.sensorMac) {
@@ -427,8 +431,8 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       
       {/* Dynamic Top Clinic Operations Control Center Header Bar */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm select-none">
-        <div className="flex flex-col md:flex-row md:items-center justify-between w-full xl:w-auto gap-4">
+      <header className="bg-white border-b border-slate-200 py-4 shadow-sm select-none">
+        <div className="max-w-7xl mx-auto w-full px-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -436,36 +440,21 @@ export default function App() {
                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
               </div>
               <h1 className="text-base sm:text-lg font-bold tracking-tight font-sans flex items-center gap-2 text-slate-900">
-                智能内镜中心患者监护与全流程追踪系统
+                智能内镜中心患者监护全流程追踪系统
                 <span className="text-[10px] font-sans px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/55 font-semibold">
                   WS 329-2024 合规系统
                 </span>
               </h1>
             </div>
           </div>
-
-          {/* Global Indicators stats */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-slate-500 md:ml-6">
-            <div className="flex items-center gap-2">
-              <Server className="w-4 h-4 text-slate-400" />
-              <div className="flex flex-col">
-                <span className="text-[9px] text-slate-400 leading-none">边缘接收Broker</span>
-                <span className="font-sans text-emerald-600 font-bold">ONLINE (10.0.8.2)</span>
-              </div>
-            </div>
-            <div className="w-px h-6 bg-slate-200 hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-slate-400" />
-              <div className="flex flex-col">
-                <span className="text-[9px] text-slate-400 leading-none">AOA定位精度</span>
-                <span className="font-sans text-emerald-600 font-bold">≤ 0.3m (Static)</span>
-              </div>
-            </div>
-          </div>
         </div>
+      </header>
 
-        {/* Real-time Monitoring Overview Dashboard */}
-        <div className="flex flex-wrap lg:flex-nowrap items-center gap-5 bg-slate-50 border border-slate-200 rounded-xl p-3 px-4 shadow-sm w-full xl:w-auto xl:max-w-3xl">
+      {/* Main Workspace grid layout */}
+      <main className="flex-1 grid grid-cols-12 gap-5 p-5 max-w-7xl mx-auto w-full items-stretch">
+        
+        {/* Real-time Monitoring Overview Dashboard (Dedicated separate row aligned with main layout) */}
+        <div className="col-span-12 flex flex-wrap lg:flex-nowrap items-center gap-5 bg-slate-50 border border-slate-200 rounded-xl p-3 px-4 shadow-sm w-full">
           {/* Dashboard Header */}
           <div className="flex flex-col border-r border-slate-200 pr-4 min-w-[100px] justify-center">
             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
@@ -551,10 +540,6 @@ export default function App() {
             </div>
           </div>
         </div>
-      </header>
-
-      {/* Main Workspace grid layout */}
-      <main className="flex-1 grid grid-cols-12 gap-5 p-5 max-w-7xl mx-auto w-full items-stretch">
         
         {/* Left Column (3 cols): Patients tracker rail & Hardware Topology specs */}
         <section className="col-span-12 lg:col-span-3 flex flex-col gap-4">
@@ -666,6 +651,7 @@ export default function App() {
               patients={patients} 
               selectedPatient={selectedPatient} 
               onSelectPatient={(p) => setSelectedPatientId(p.id)}
+              onAdvanceStage={(pat, stage) => handleAdvanceStage(pat, stage)}
               telemetryLogs={telemetryLogs}
               setActiveTab={setActiveTab}
             />

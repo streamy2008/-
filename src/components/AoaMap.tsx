@@ -11,6 +11,7 @@ interface AoaMapProps {
   patients: Patient[];
   selectedPatient: Patient | null;
   onSelectPatient: (patient: Patient) => void;
+  onAdvanceStage?: (patient: Patient, stage: number) => void;
   telemetryLogs: TelemetryEvent[];
   setActiveTab?: (tab: string) => void;
 }
@@ -70,7 +71,7 @@ export const getPatientCoordinates = (stage: number, patId: string) => {
   }
 };
 
-export default function AoaMap({ patients, selectedPatient, onSelectPatient, telemetryLogs, setActiveTab }: AoaMapProps) {
+export default function AoaMap({ patients, selectedPatient, onSelectPatient, onAdvanceStage, telemetryLogs, setActiveTab }: AoaMapProps) {
   const [hoveredRegion, setHoveredRegion] = useState<number | null>(null);
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
 
@@ -143,9 +144,13 @@ export default function AoaMap({ patients, selectedPatient, onSelectPatient, tel
               onMouseEnter={() => setHoveredRegion(region.id)}
               onMouseLeave={() => setHoveredRegion(null)}
               onClick={() => {
-                const pat = patients.find(p => p.currentStage === region.id);
-                if (pat) {
-                  onSelectPatient(pat);
+                if (selectedPatient && onAdvanceStage && !selectedPatient.isLocked) {
+                  onAdvanceStage(selectedPatient, region.id);
+                } else {
+                  const pat = patients.find(p => p.currentStage === region.id);
+                  if (pat) {
+                    onSelectPatient(pat);
+                  }
                 }
                 if (region.id === 10 && setActiveTab) {
                   setActiveTab("record");
