@@ -646,7 +646,7 @@ export default function App() {
         <section className="col-span-12 lg:col-span-9 flex flex-col gap-5">
           
           {/* Top Panel: High Fidelity Realtime Location Map */}
-          <div className="h-[430px] w-full">
+          <div className="w-full">
             <AoaMap 
               patients={patients} 
               selectedPatient={selectedPatient} 

@@ -110,7 +110,7 @@ export default function AoaMap({ patients, selectedPatient, onSelectPatient, onA
       </div>
 
       {/* Map visual stage container */}
-      <div className="relative flex-1 min-h-[380px] bg-slate-50/70 rounded-lg border border-slate-200 overflow-hidden font-mono text-[10px]">
+      <div className="relative h-[300px] bg-slate-50/70 rounded-lg border border-slate-200 overflow-hidden font-mono text-[10px]">
         {/* Architectural grid overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a04_1px,transparent_1px),linear-gradient(to_bottom,#0f172a04_1px,transparent_1px)] bg-[size:16px_16px]" />
         
