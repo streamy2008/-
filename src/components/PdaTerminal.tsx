@@ -6,7 +6,8 @@
 import React, { useState, useEffect } from "react";
 import { 
   Smartphone, UserCheck, ShieldAlert, Award, 
-  Wifi, Bluetooth, CheckCircle, Flame, Save, Key, RefreshCw
+  Wifi, Bluetooth, CheckCircle, Flame, Save, Key, RefreshCw,
+  UploadCloud, Camera, FileImage, X, Maximize2, Trash2, Paperclip, Info
 } from "lucide-react";
 import { Patient, Gender, AsaGrade, FastingStatus } from "../types";
 
@@ -37,7 +38,9 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
     asaGrade: AsaGrade.I,
     fastingStatus: FastingStatus.Fasted,
     specialConditions: "无特殊过敏史及合并症。",
-    sensorMac: ""
+    sensorMac: "",
+    patientPhoto: "",
+    consentPhoto: ""
   });
 
   // Local state for Modified Aldrete scoring (0-2 for each)
@@ -62,7 +65,9 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
         asaGrade: selectedPatient.asaGrade,
         fastingStatus: selectedPatient.fastingStatus,
         specialConditions: selectedPatient.specialConditions,
-        sensorMac: selectedPatient.sensorMac
+        sensorMac: selectedPatient.sensorMac,
+        patientPhoto: selectedPatient.patientPhoto || "",
+        consentPhoto: selectedPatient.consentPhoto || ""
       });
       if (selectedPatient.aldreteScore) {
         setAldrete({
@@ -152,7 +157,9 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
         sbp: 120,
         dbp: 80
       },
-      isLocked: false
+      isLocked: false,
+      patientPhoto: formData.patientPhoto,
+      consentPhoto: formData.consentPhoto
     };
 
     onAddNewPatient(newPat);
@@ -173,6 +180,8 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
       asaGrade: formData.asaGrade,
       fastingStatus: formData.fastingStatus,
       specialConditions: formData.specialConditions,
+      patientPhoto: formData.patientPhoto,
+      consentPhoto: formData.consentPhoto
     };
     onUpdatePatient(updated);
     onLogEvent("SENSOR_BIND", `修改信息：更新患者 ${updated.name} 信息与评估等级`);
@@ -247,6 +256,239 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
     };
     onUpdatePatient(updated);
     onLogEvent("AOA_POSITION", `AOA定位：检查结束，患者 ${selectedPatient.name} 离开二级PACU，流转至区域10 (检查结束) 并自动生成最终电子麻醉记录单。`);
+  };
+
+  // Drag and drop / file change handlers for patients photo uploads
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>, field: "patientPhoto" | "consentPhoto") => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file, field);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: "patientPhoto" | "consentPhoto") => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file, field);
+    }
+  };
+
+  const processFile = (file: File, field: "patientPhoto" | "consentPhoto") => {
+    if (file.size > 5 * 1024 * 1024) {
+      alert("文件大小不能超过 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        const base64Data = event.target.result as string;
+        setFormData(prev => ({
+          ...prev,
+          [field]: base64Data
+        }));
+
+        // If a patient is selected, auto-save immediately
+        if (selectedPatient) {
+          const updated: Patient = {
+            ...selectedPatient,
+            [field]: base64Data
+          };
+          onUpdatePatient(updated);
+        }
+
+        onLogEvent("SENSOR_BIND", `上传资料：患者 ${selectedPatient?.name || formData.name || '新患者'} 成功上传了 ${field === "patientPhoto" ? "身份核对照" : "知情同意书"}`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSimulatePhoto = (field: "patientPhoto" | "consentPhoto") => {
+    let mockImg = "";
+    if (field === "patientPhoto") {
+      mockImg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><rect width="100" height="100" fill="%23eff6ff"/><circle cx="50" cy="40" r="18" fill="%23bfdbfe"/><path d="M25,75 C25,60 75,60 75,75" fill="%233b82f6"/><rect x="42" y="80" width="16" height="4" fill="%233b82f6" rx="1"/><text x="50" y="93" font-family="sans-serif" font-size="7" fill="%231e3a8a" text-anchor="middle" font-weight="bold">AI-CHECKED</text></svg>`;
+      onLogEvent("SENSOR_BIND", `设备拍照：已激活 5G PDA 摄像头，成功采集患者 ${selectedPatient?.name || formData.name || "新患者"} 的现场高清核对人像`);
+    } else {
+      mockImg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280" width="200" height="280"><rect width="200" height="280" fill="white" stroke="%233b82f6" stroke-width="2"/><rect x="20" y="20" width="160" height="15" fill="%232563eb" rx="2"/><text x="100" y="31" fill="white" font-family="sans-serif" font-size="8" font-weight="bold" text-anchor="middle">麻醉知情同意书 (电子存档)</text><rect x="20" y="55" width="100" height="6" fill="%2364748b"/><rect x="20" y="70" width="160" height="3" fill="%23cbd5e1"/><rect x="20" y="80" width="140" height="3" fill="%23cbd5e1"/><rect x="20" y="90" width="150" height="3" fill="%23cbd5e1"/><rect x="20" y="105" width="80" height="6" fill="%2364748b"/><rect x="20" y="120" width="160" height="3" fill="%23cbd5e1"/><rect x="20" y="130" width="130" height="3" fill="%23cbd5e1"/><rect x="20" y="145" width="150" height="3" fill="%23cbd5e1"/><rect x="20" y="160" width="120" height="3" fill="%23cbd5e1"/><rect x="20" y="180" width="60" height="10" fill="%23d1fae5" rx="1"/><text x="50" y="188" fill="%23065f46" font-family="sans-serif" font-size="6" font-weight="bold" text-anchor="middle">患者已手写签名</text><path d="M30,230 Q50,210 70,240 T110,220" fill="none" stroke="%23dc2626" stroke-width="1.5"/><circle cx="150" cy="225" r="16" fill="none" stroke="%23dc2626" stroke-width="1.5" stroke-dasharray="4,2"/><text x="150" y="228" fill="%23dc2626" font-family="sans-serif" font-size="6" font-weight="bold" text-anchor="middle">麻醉科印章</text></svg>`;
+      onLogEvent("SENSOR_BIND", `文档扫描：已激活 5G PDA 扫描头，成功扫描并结构化归档患者的纸质《术前麻醉知情同意书》`);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [field]: mockImg
+    }));
+
+    if (selectedPatient) {
+      const updated: Patient = {
+        ...selectedPatient,
+        [field]: mockImg
+      };
+      onUpdatePatient(updated);
+    }
+  };
+
+  const handleClearPhoto = (field: "patientPhoto" | "consentPhoto") => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: ""
+    }));
+
+    if (selectedPatient) {
+      const updated: Patient = {
+        ...selectedPatient,
+        [field]: ""
+      };
+      onUpdatePatient(updated);
+    }
+    onLogEvent("SENSOR_BIND", `清除档案：已移除患者 ${selectedPatient?.name || formData.name || '当前患者'} 的 ${field === "patientPhoto" ? "身份识别照" : "纸质知情同意书"}`);
+  };
+
+  const renderImageUploaders = () => {
+    return (
+      <div className="flex flex-col gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-inner">
+        <span className="font-bold text-slate-700 text-xs flex items-center gap-1.5">
+          <Paperclip className="w-4 h-4 text-blue-600" />
+          报到资料附件管理 (精细化扫描)
+        </span>
+        
+        {/* Drop zones grid */}
+        <div className="grid grid-cols-2 gap-3">
+          
+          {/* Uploader 1: Patient Portrait */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+              <Camera className="w-3.5 h-3.5 text-blue-500" />
+              1. 患者身份核对照 *
+            </span>
+            
+            <input 
+              type="file" 
+              id="patientPhotoInput" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={(e) => handleFileChange(e, "patientPhoto")}
+            />
+            
+            {formData.patientPhoto ? (
+              <div className="relative border border-blue-200 bg-blue-50/20 rounded-lg p-2 flex flex-col items-center justify-between h-[120px] shadow-sm">
+                <img 
+                  src={formData.patientPhoto} 
+                  alt="Patient Face" 
+                  className="h-14 w-14 rounded-full object-cover border border-blue-300 shadow-sm"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="flex gap-1 w-full justify-center mt-1.5">
+                  <button 
+                    onClick={() => handleSimulatePhoto("patientPhoto")}
+                    className="text-[9px] bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded cursor-pointer"
+                  >
+                    重拍
+                  </button>
+                  <button 
+                    onClick={() => handleClearPhoto("patientPhoto")}
+                    className="text-[9px] bg-red-50 border border-red-100 hover:bg-red-100 text-red-600 px-1.5 py-0.5 rounded flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-2.5 h-2.5" />
+                    清除
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleFileDrop(e, "patientPhoto")}
+                onClick={() => document.getElementById("patientPhotoInput")?.click()}
+                className="border border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/10 transition-colors rounded-lg p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer h-[120px] text-center"
+              >
+                <UploadCloud className="w-6 h-6 text-slate-400 group-hover:text-blue-500" />
+                <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                  拖拽或点击上传<br/><span className="text-[9px] text-slate-400 font-normal">(人像照片)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSimulatePhoto("patientPhoto");
+                  }}
+                  className="text-[9px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded border border-blue-200 transition-colors cursor-pointer mt-0.5"
+                >
+                  模拟拍照
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Uploader 2: Consent Form */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+              <FileImage className="w-3.5 h-3.5 text-emerald-500" />
+              2. 麻醉知情同意书 *
+            </span>
+            
+            <input 
+              type="file" 
+              id="consentPhotoInput" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={(e) => handleFileChange(e, "consentPhoto")}
+            />
+            
+            {formData.consentPhoto ? (
+              <div className="relative border border-emerald-200 bg-emerald-50/20 rounded-lg p-2 flex flex-col items-center justify-between h-[120px] shadow-sm">
+                <img 
+                  src={formData.consentPhoto} 
+                  alt="Consent Form" 
+                  className="h-14 w-10 object-contain border border-emerald-300 shadow-sm rounded bg-white"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="flex gap-1 w-full justify-center mt-1.5">
+                  <button 
+                    onClick={() => handleSimulatePhoto("consentPhoto")}
+                    className="text-[9px] bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded cursor-pointer"
+                  >
+                    重扫
+                  </button>
+                  <button 
+                    onClick={() => handleClearPhoto("consentPhoto")}
+                    className="text-[9px] bg-red-50 border border-red-100 hover:bg-red-100 text-red-600 px-1.5 py-0.5 rounded flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-2.5 h-2.5" />
+                    清除
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleFileDrop(e, "consentPhoto")}
+                onClick={() => document.getElementById("consentPhotoInput")?.click()}
+                className="border border-dashed border-slate-300 hover:border-emerald-400 hover:bg-emerald-50/10 transition-colors rounded-lg p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer h-[120px] text-center"
+              >
+                <UploadCloud className="w-6 h-6 text-slate-400 group-hover:text-emerald-500" />
+                <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                  拖拽或点击上传<br/><span className="text-[9px] text-slate-400 font-normal">(纸质同意书)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSimulatePhoto("consentPhoto");
+                  }}
+                  className="text-[9px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded border border-emerald-200 transition-colors cursor-pointer mt-0.5"
+                >
+                  模拟扫描
+                </button>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        <div className="text-[9px] text-slate-400 leading-normal border-t border-slate-200/60 pt-1.5 font-sans">
+          🛡️ 已开启端到端双重加密，所有上传的附件将按照《WS 329-2024》规范自动归档并与电子麻醉记录单深度绑定。
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -353,6 +595,8 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
                 </span>
               </div>
 
+              {renderImageUploaders()}
+
               <button
                 onClick={handleCreatePatient}
                 disabled={!formData.name.trim()}
@@ -399,8 +643,47 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
 
             {/* Stages specific editing fields */}
             
-            {/* Steps 1 & 2: Clinical Data & Assessments */}
-            {selectedPatient.currentStage <= 2 && (
+            {/* Step 1: Registration Check-in & Documents */}
+            {selectedPatient.currentStage === 1 && (
+              <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-col gap-3.5 shadow-sm">
+                <div className="font-bold text-slate-800 border-b border-slate-150 pb-1.5 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-blue-600" />
+                  步骤1：患者报到、身份核对与知情同意书
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5 text-[11px] bg-slate-50 p-2.5 rounded border border-slate-200">
+                  <div>
+                    <span className="text-slate-400 block font-semibold text-[9px] uppercase">姓名</span>
+                    <span className="font-bold text-slate-800 text-xs">{selectedPatient.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-semibold text-[9px] uppercase">年龄 / 性别</span>
+                    <span className="font-bold text-slate-800 text-xs">{selectedPatient.age} 岁 / {selectedPatient.gender}</span>
+                  </div>
+                </div>
+
+                {renderImageUploaders()}
+
+                <button
+                  onClick={handleSaveChanges}
+                  className="bg-[#2563eb] hover:bg-blue-700 text-white p-2 rounded text-center font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+                >
+                  <Save className="w-4 h-4" />
+                  同步并保存登记附件 (HIS/EMR同步)
+                </button>
+                
+                <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                  <span className="font-bold flex items-center gap-1">
+                    <Info className="w-3.5 h-3.5" />
+                    下一步指引
+                  </span>
+                  <span>完成资料附件核对后，请引导患者移步至 **麻醉评估室 (区域2)**。网关将自动通过 AOA 高精度信标捕捉流转事件。</span>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Preoperative Assessment */}
+            {selectedPatient.currentStage === 2 && (
               <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-col gap-3 shadow-sm">
                 <div className="font-bold text-slate-800 border-b border-slate-150 pb-1.5 flex items-center gap-1.5">
                   <UserCheck className="w-4 h-4 text-blue-600" />

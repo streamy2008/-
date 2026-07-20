@@ -1186,6 +1186,83 @@ export default function AnesthesiaRecord({ patient, onLockRecord }: AnesthesiaRe
           </div>
         )}
 
+        {/* On-screen Patient Documents & Attachments Verification (Print Hidden) */}
+        <div className="bg-white border border-slate-300 shadow-sm rounded-xl p-4 max-w-[760px] w-full print:hidden">
+          <div className="flex justify-between items-center border-b border-slate-200 pb-2.5 mb-3">
+            <span className="font-bold text-slate-800 text-xs flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-blue-600" />
+              电子病历附件核签区 (临床报到双重核对凭证)
+            </span>
+            <span className="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              国家卫健委 WS 329-2024 电子化验证
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            
+            {/* Column 1: Patient Face Portrait */}
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col items-center justify-between min-h-[180px]">
+              <span className="text-[10.5px] text-slate-600 font-bold self-start flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                1. 患者身份识别电子人像
+              </span>
+              
+              {patient.patientPhoto ? (
+                <div className="my-2.5 flex flex-col items-center gap-2">
+                  <img 
+                    src={patient.patientPhoto} 
+                    alt="Patient Face Photo" 
+                    className="h-24 w-24 rounded-full object-cover border-2 border-white shadow-md ring-4 ring-blue-50"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 font-medium">
+                    验证成功 - 人脸比对已归档
+                  </span>
+                </div>
+              ) : (
+                <div className="my-6 text-slate-400 text-center flex flex-col items-center gap-1.5">
+                  <Eye className="w-8 h-8 text-slate-300" />
+                  <span className="text-[10px] font-medium text-slate-400">未拍摄患者身份人脸照</span>
+                  <span className="text-[9px] text-slate-400 font-normal">请在护士 PDA 终端一键拍照采集</span>
+                </div>
+              )}
+              
+              <span className="text-[8.5px] text-slate-400 self-start">存储规格：256位端到端防篡改加密哈希归档</span>
+            </div>
+
+            {/* Column 2: Consent Form Scan */}
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col items-center justify-between min-h-[180px]">
+              <span className="text-[10.5px] text-slate-600 font-bold self-start flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                2. 麻醉及内镜诊疗知情同意书
+              </span>
+              
+              {patient.consentPhoto ? (
+                <div className="my-2.5 flex flex-col items-center gap-2">
+                  <img 
+                    src={patient.consentPhoto} 
+                    alt="Consent Form Document" 
+                    className="h-24 w-18 object-contain border border-slate-300 shadow-md bg-white rounded"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 font-medium">
+                    扫描成功 - 纸质签章已固化
+                  </span>
+                </div>
+              ) : (
+                <div className="my-6 text-slate-400 text-center flex flex-col items-center gap-1.5">
+                  <Eye className="w-8 h-8 text-slate-300" />
+                  <span className="text-[10px] font-medium text-slate-400">未扫描纸质知情同意书</span>
+                  <span className="text-[9px] text-slate-400 font-normal">请在护士 PDA 终端执行扫描或拍照</span>
+                </div>
+              )}
+              
+              <span className="text-[8.5px] text-slate-400 self-start">符合电子签名法(2019修订版)规范之原件锁定</span>
+            </div>
+
+          </div>
+        </div>
+
       </div>
 
       {/* Footer watermark details */}

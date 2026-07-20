@@ -81,6 +81,8 @@ export interface Patient {
   };
 
   isLocked: boolean; // Anesthetic record locked
+  patientPhoto?: string; // Base64 patient photo
+  consentPhoto?: string; // Base64 consent/medical sheet photo
 }
 
 export interface TelemetryEvent {
