@@ -16,6 +16,7 @@ interface PdaTerminalProps {
   onUpdatePatient: (updatedPatient: Patient) => void;
   onAddNewPatient: (patient: Patient) => void;
   onLogEvent: (type: "AOA_POSITION" | "CAST_TRIGGER" | "SENSOR_BIND" | "FILTER_DAMP" | "COMPLIANCE_ALARM", message: string, latencyMs?: number) => void;
+  onDeselectPatient?: () => void;
 }
 
 // Preset mock patient profiles from HIS
@@ -27,7 +28,7 @@ const HIS_MOCK_PROFILES = [
   { name: "钱福海", gender: Gender.Male, age: 74, height: 168, weight: 64 }
 ];
 
-export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNewPatient, onLogEvent }: PdaTerminalProps) {
+export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNewPatient, onLogEvent, onDeselectPatient }: PdaTerminalProps) {
   // Local state for adding/editing patient
   const [formData, setFormData] = useState({
     name: "",
@@ -628,6 +629,14 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
                   }`}>
                     {selectedPatient.gender} • {selectedPatient.age}岁
                   </span>
+                  {onDeselectPatient && (
+                    <button
+                      onClick={onDeselectPatient}
+                      className="text-[9px] text-slate-400 hover:text-blue-600 ml-2 border border-slate-200 hover:border-blue-200 px-1.5 py-0.2 rounded bg-white transition-colors cursor-pointer font-medium"
+                    >
+                      取消选择
+                    </button>
+                  )}
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono mt-1">
                   唯一检查追踪号: <span className="text-blue-600 font-bold">{selectedPatient.id}</span>
@@ -648,7 +657,7 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
               <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-col gap-3.5 shadow-sm">
                 <div className="font-bold text-slate-800 border-b border-slate-150 pb-1.5 flex items-center gap-1.5">
                   <UserCheck className="w-4 h-4 text-blue-600" />
-                  步骤1：患者报到、身份核对与知情同意书
+                  步骤1：患者报到
                 </div>
 
                 <div className="grid grid-cols-2 gap-3.5 text-[11px] bg-slate-50 p-2.5 rounded border border-slate-200">
@@ -743,7 +752,7 @@ export default function PdaTerminal({ selectedPatient, onUpdatePatient, onAddNew
               <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex flex-col gap-3 shadow-sm">
                 <div className="font-bold text-slate-800 border-b border-slate-150 pb-1.5 flex items-center gap-1.5">
                   <ShieldAlert className="w-4 h-4 text-emerald-600" />
-                  候诊与穿刺确认
+                  {selectedPatient.currentStage === 3 ? "步骤3：等候大厅候诊" : "步骤4：穿刺就绪确认"}
                 </div>
                 
                 {selectedPatient.currentStage === 3 ? (

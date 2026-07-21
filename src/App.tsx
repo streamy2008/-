@@ -723,6 +723,7 @@ export default function App() {
                     onUpdatePatient={handleUpdatePatient}
                     onAddNewPatient={handleAddNewPatient}
                     onLogEvent={handleLogEvent}
+                    onDeselectPatient={() => setSelectedPatientId("X-NONE")}
                   />
                 )}
                 {activeTab === "m55_area5" && (
